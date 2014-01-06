@@ -1,0 +1,1076 @@
+PDP dev notes
+
+Entry: Syncing with pd SVN
+Date: Tue Aug 31 18:55:21 CEST 2010
+
+# full repo:
+svn co https://pure-data.svn.sourceforge.net/svnroot/pure-data pure-data 
+
+# only pdp:
+svn co https://pure-data.svn.sourceforge.net/svnroot/pure-data/trunk/externals/pdp/ pdp-pde
+
+
+Entry: Picking up PDP?
+Date: Mon Nov 28 16:42:54 EST 2011
+
+After I forked PF from PDP I've been working on many things that might
+deserve some re-integration into the PDP framework.  I'm not too happy
+with the design of PDP.  Every time I pick up PDP again I think the
+problems might be fixable, but then give up shortly after that, seeing
+that they are not..
+
+A better approach might be to start a new system and make interfaces
+with Pd / PDP.
+
+List of problems:
+
+* Memory allocation / reference counting.  This is fixed in PF but
+  backporting would break PiDiP etc.
+
+* Interfaces.  This includes Pd, PDP's packet interface, raw buffer
+  processing, interfaces of ad-hoc modules (video i/o ...).
+
+* Composability on the instruction level, i.e. automate inlining and
+  unrolling.  Most algorithms are simple, but a lot of effort is spent
+  in manually writing unrolled loops with simple formulas.
+
+
+
+Entry: Upgrading V4L
+Date: Tue Nov 29 13:19:49 EST 2011
+
+According to IOhannes v4l1 is no longer supported in recent kernels
+(zoo: 2.6.33.7-rt29 still works).  The preferred way is now to use
+libv4l.  He had changed PDP accordingly.  To install on Debian:
+
+  apt-get install libv4l-dev
+
+In configure.ac I had to change "pkg-config libv4l" to "pkg-config
+libv4l2" to make it compile on debian.
+
+That was probably the reason why I couldn't get my old webcams to work
+on zoo.  Running naked xawtv also no longer works[1]:
+
+  tom@zoo:~$ xawtv 
+  This is xawtv-3.95.dfsg.1, running on Linux/x86_64 (2.6.33.7-rt29)
+  xinerama 0: 1440x900+0+0
+  X Error of failed request:  XF86DGANoDirectVideoMode
+    Major opcode of failed request:  130 (XFree86-DGA)
+    Minor opcode of failed request:  1 (XF86DGAGetVideoLL)
+    Serial number of failed request:  69
+    Current serial number in output stream:  69
+
+I have to use :
+
+  xawtv -nodga
+
+Mplayer just works
+
+  mplayer tv://
+
+It still gets messed up when plugging it in a USB hub, which seems to
+be a problem with the camera.
+
+[1221785.408222] usb 7-4: new full speed USB device using ohci_hcd and address 28
+[1221785.639110] usb 7-4: New USB device found, idVendor=046d, idProduct=08b2
+[1221785.639113] usb 7-4: New USB device strings: Mfr=0, Product=0, SerialNumber=0
+[1221785.641365] pwc: Logitech QuickCam 4000 Pro USB webcam detected.
+[1221785.641396] pwc: Registered as video0.
+[1221785.923306] input: PWC snapshot button as /class/input/input10
+
+After plugging it back into a host port it doesn't recover.  I tried
+to unload pwc, videodev and the v4l compat modules but nothing but v4l
+select errors.
+
+
+
+
+[1] http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=513818
+
+
+
+Entry: V4L2
+Date: Mon Oct 29 20:08:59 EDT 2012
+
+Merging some code from pdp_v4l2 (pidip) into pdp_v4l.
+
+I've had some hard kernel crashes working with the PWC cams.  Last
+happened when unplugging:
+
+BUG: ... NULL pointer ...
+pwc_cleanup_queued_bufs()
+trace:
+usb_pwc_disconnect
+
+tom@zoo:~$ cat /proc/version 
+Linux version 3.2.0-3-rt-amd64 (Debian 3.2.21-3) (debian-kernel@lists.debian.org) (gcc version 4.6.3 (Debian 4.6.3-8) ) #1 SMP PREEMPT RT Thu Jun 28 10:46:01 UTC 2012
+tom@zoo:~$ 
+
+linux-image-3.2.0-3-rt-amd64
+
+EDIT: Looks like there are later versions.
+
+tom@zoo:~$ sudo apt-get install linux-image-rt-amd64
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+The following extra packages will be installed:
+  linux-image-3.2.0-4-rt-amd64
+Suggested packages:
+  linux-doc-3.2 debian-kernel-handbook grub-pc extlinux lilo
+The following NEW packages will be installed:
+  linux-image-3.2.0-4-rt-amd64 linux-image-rt-amd64
+0 upgraded, 2 newly installed, 0 to remove and 2061 not upgraded.
+Need to get 23.6 MB of archives.
+
+
+
+Entry: Alternative implementation
+Date: Mon Oct 29 21:55:28 EDT 2012
+
+More like the "dsp" approach: fixed frame rate video engine.  Maybe
+this can be done generically: use Pd to create an "external" dataflow
+network implemented by another app.
+
+
+Entry: Picking a webcam
+Date: Tue Oct 30 18:57:57 EDT 2012
+
+Always a gamble going just by model number, but it seems best to go
+for either spca5xx or uvc:
+
+http://mxhaard.free.fr/spca5xx.html
+http://www.ideasonboard.org/uvc/
+
+These are on the UVC list: HD-3000 and HD-5000
+http://www.amazon.com/Microsoft-T3H-00011-LifeCam-HD-3000/dp/B008ZVRAQS
+http://www.amazon.com/Microsoft-LifeCam-HD-5000-720p-Webcam/dp/B002XN7C6W
+
+
+
+
+Entry: Microsoft LifeCam HD-5000
+Date: Thu Nov  1 18:38:11 EDT 2012
+
+045e:076d Microsoft Corp. LifeCam HD-5000
+
+This needs to be massaged a little bit before it gives proper 30fps
+display.  See here[1].  This worked for me:
+
+- manual exposure set to 153
+- auto focus off
+
+Valid exposure values are:
+
+> But the camera does not respond to exposure adjustment linearly. There
+> are some valid values between 5-20000. They are from darkest to brightest
+> 5, 9 & 10 (same brightness), 19 & 20, 39, 78, 156, 312, 625, 1250, 2500,
+> 5000 and 10000. Every other value gives the maximum brightness. 156 is the
+> maximum value to get 30 fps.
+
+Maybe I can send a patch to the uvcvideo list?
+
+[1] http://comments.gmane.org/gmane.linux.drivers.uvc.devel/5717
+
+
+
+Entry: Sharable C modules
+Date: Thu Nov  1 20:16:48 EDT 2012
+
+Thinking about libprim etc...  Basic idea is that you want a
+compile-time insertion of a project-specific struct header.
+
+
+
+Entry: V4L2 controls
+Date: Thu Nov  1 23:01:40 EDT 2012
+
+Everything is in /usr/include/linux/videodev2.h
+The thing to find out is how guvcview maps controls to defines from videodev2.h
+
+[1] http://v4l.videotechnology.com/dwg/v4l2.html#CONTROL
+
+
+Entry: MMX on 64 bit?
+Date: Sun Nov  4 09:39:25 EST 2012
+
+as --32 -o pixel_pack_s16u8.o pixel_pack_s16u8.s
+
+it's not actually the MMX, but using 32bit registers, i.e.:
+
+as -o pixel_unpack_u8s16.o pixel_unpack_u8s16.s
+pixel_unpack_u8s16.s: Assembler messages:
+pixel_unpack_u8s16.s:25: Error: invalid instruction suffix for `push'
+pixel_unpack_u8s16.s:27: Error: operand type mismatch for `push'
+pixel_unpack_u8s16.s:28: Error: operand type mismatch for `push'
+
+25    pushl %ebp
+26    movl %esp, %ebp
+27    push %esi
+28    push %edi
+
+
+Entry: Leaf objects
+Date: Sun Nov  4 10:30:55 EST 2012
+
+So, the goal is to merge the "leaf object" library of PDP and libprim,
+starting with V4L.
+
+
+Entry: MMX stuff
+Date: Sun Nov  4 15:03:52 EST 2012
+
+Got to fix ABI problems in the MMX code.
+
+Maybe it's best to go for SSE2 on the longer term, as it seems to have
+most of the saturated integer math that's necessary for PDP's feel.
+
+It would be nice to do some auto-vector code also.
+
+Or GCC extensions[4].  The good thing here is that ABI stuff gets
+taken care of by GCC.
+
+[1] http://en.wikipedia.org/wiki/SSE2
+[2] http://gcc.gnu.org/projects/tree-ssa/vectorization.html
+[3] http://softpixel.com/~cwright/programming/simd/sse2.php
+[4] http://stackoverflow.com/questions/7919304/gcc-sse-code-optimization
+
+
+Entry: 64 bit processors
+Date: Sun Nov  4 17:07:53 EST 2012
+
+Yeah I missed that revolution ;) I have two.  zoo is an Acer desktop,
+tx is an Acer TimeLine X laptop.
+
+# 4 cores, only first one shown
+tom@tx:~$ cat /proc/cpuinfo 
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 42
+model name	: Intel(R) Core(TM) i5-2430M CPU @ 2.40GHz
+stepping	: 7
+microcode	: 0x17
+cpu MHz		: 800.000
+cache size	: 3072 KB
+physical id	: 0
+siblings	: 4
+core id		: 0
+cpu cores	: 2
+apicid		: 0
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx lahf_lm ida arat epb xsaveopt pln pts dtherm tpr_shadow vnmi flexpriority ept vpid
+bogomips	: 4788.54
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 36 bits physical, 48 bits virtual
+power management:
+
+# 4 cores, only first one shown
+tom@zoo:~$ cat /proc/cpuinfo 
+processor	: 0
+vendor_id	: AuthenticAMD
+cpu family	: 16
+model		: 4
+model name	: AMD Phenom(tm) II X4 820 Processor
+stepping	: 2
+microcode	: 0x1000086
+cpu MHz		: 800.000
+cache size	: 512 KB
+physical id	: 0
+siblings	: 4
+core id		: 0
+cpu cores	: 4
+apicid		: 0
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 5
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm 3dnowext 3dnow constant_tsc rep_good nopl nonstop_tsc extd_apicid pni monitor cx16 popcnt lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt hw_pstate npt lbrv svm_lock nrip_save
+bogomips	: 5600.14
+TLB size	: 1024 4K pages
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 48 bits physical, 48 bits virtual
+power management: ts ttp tm stc 100mhzsteps hwpstate
+
+
+
+What's interesting is the CPUflags.  Making the intersection gives:
+
+SHARED:
+
+apic	      cx8   lahf_lm  monitor	  nx   popcnt	 sep	  vme
+clflush       de    lm	     msr	  pae  pse	 sse
+cmov	      fpu   mca      mtrr	  pat  pse36	 sse2
+constant_tsc  fxsr  mce      nonstop_tsc  pge  rdtscp	 syscall
+cx16	      ht    mmx      nopl	  pni  rep_good  tsc
+
+AMD:
+
+3dnow	       cmp_legacy  extd_apicid	lbrv	     nrip_save	sse4a
+3dnowext       cpu	   fxsr_opt	misalignsse  osvw	svm
+3dnowprefetch  cr8_legacy  hw_pstate	mmxext	     pdpe1gb	svm_lock
+abm	       extapic	   ibs		npt	     skinit	wdt
+
+INTEL:
+
+acpi	      ds_cpl  flexpriority  pln     tm2			xsave
+aes	      dtes64  ida	    pts     tpr_shadow		xsaveopt
+aperfmperf    dtherm  pbe	    ss	    tsc_deadline_timer	xtopology
+arat	      dts     pcid	    sse4_1  vmx			xtpr
+arch_perfmon  epb     pclmulqdq     sse4_2  vnmi
+avx	      ept     pdcm	    ssse3   vpid
+bts	      est     pebs	    tm	    x2apic
+
+
+So both implement some SSE4 instructions, but they are named
+separately.  What is the subset that can be used? [1] says they share
+4 instructions.  Maybe it's best just to use SSE2.
+
+Actually, SSE3 is called PNI[2] and supported by both.  According to
+[2] it's also supported on Atom.
+
+[1] http://en.wikipedia.org/wiki/SSE4#SSE4_subsets
+[2] http://en.wikipedia.org/wiki/SSE3
+
+
+
+
+Entry: TODO
+Date: Sun Nov  4 17:39:37 EST 2012
+
+- cleanup v4l / x11 code to allow objects to be used outside PDP.
+  there is already significant code in libprim that can be merged.
+
+- fix x64 ABI problems in MMX code.  maybe best to let GCC handle it
+  and use inline asm instead?
+
+
+
+Entry: MMX through GCC extensions
+Date: Mon Nov  5 14:11:24 EST 2012
+
+#include <mmintrin.h>
+
+Which I find in 
+/usr/lib/gcc/x86_64-linux-gnu/4.6/include/mmintrin.h
+
+EDIT: Seems to make it quite a bit faster indeed.  logistics patch is
+now running at 30fps with 65% CPU with only gain, add, mul, mix,
+biquad converted.
+
+Using __attribute__((always_inline)) for the inner biquad functions
+takes off another 5-7% for the whole patch.
+
+With cheby it's at 45%.
+
+
+TODO:
+
+- more MMX objects: resample, pack/unpack, crot, rand, randmix, 
+- check asm for inline / alignment -> seems ok
+- xv / glx: find out where the tearing comes from
+
+
+
+Entry: leaf_v4l separated
+Date: Tue Nov  6 19:57:44 EST 2012
+
+Next is to find out how to put libprim and PDP on the same codebase.
+
+
+
+Entry: Higher frame rate on built-in camera TimeLineX
+Date: Tue Nov  6 21:40:20 EST 2012
+
+In guvcview when I change powerline frequency setting, temporarily the
+picture displays a higher frame rate.  What's going on here?
+
+058f:b002 Alcor Micro Corp.
+
+
+
+Entry: zl_
+Date: Wed Nov  7 21:32:28 EST 2012
+
+Instead of mixing with libprim it seems best to just make a simple C
+library of utility objects.  A basic reusable old-tech approach.
+
+librpim is too tied to the scripting idea, and is probably best tied
+to zl_ directly
+
+Oh, and zl_ stands for Zwizwa Library ;)
+
+I think I'm going to keep the language-foo out of PDP.  PDP is good as
+it is: simple, straightforward.  The only place I see for languages is
+at compile time, to generate code.
+
+
+Entry: Next
+Date: Thu Nov  8 21:45:59 EST 2012
+
+- integrate xwindow.c object into PDP, replacing most of the
+  pdp_xwindow stuff.   maybe this needs a gl object first?
+
+- MMX resample: better fetch strategy
+
+
+Entry: Resampling
+Date: Fri Nov  9 11:05:50 EST 2012
+
+I'm not sure any more if it is useful to do many pixels in parallel.
+It seems that at least some operations need to be done serially.
+
+-> What does need to happen is that 4 pixels are computed and stored
+   together.  So it makes sense to do part of the ops in parallel
+   since result storage is in parallel.
+
+What about restructuring?  What can be done in parallell is to compute
+the offsets of the 4 vectors to be fetched from memory, that would
+work out nice.
+
+The coordinates would still be stored in 2 vectors, but the 4
+components are used to compute the 4 vector locations:
+
+(x,y), (x+1,y), (x,y+1), (x+1,y+1)
+
+The challenge in doing this is to encode that +1 somehow.  Currently
+this can't be done exactly since the coordinates are in 0.32
+image-relative coordinates to allow for easy wrap-around.
+
+I.e. need to guarantee that
+
+     x * scale and (x+offset_1) * scale always point to neighboring
+     pixel indices.
+
+is there any mathematical property that can guarantee this?
+
+It might really be simpler to just perform a compare + correction.
+I.e. a modulo that works only for a the vectors that are just outside
+the range.  Do this in parallel:
+
+    x_inc = x_inc > right_edge  ? 0 : x_inc
+    y_inc = y_inc > bottom_edge ? 0 : y_inc
+
+In MMX that is PCMPGTW followed by PAND
+
+_mm_cmpgt_pi16()
+_mm_and_si64()
+
+
+
+Entry: Pd as a dataflow compiler
+Date: Fri Nov  9 12:40:13 EST 2012
+
+Time to make this work ey ;) New project: PDC : Pure Data Compiler.
+Arrange a network.  The result is a DFG that can be given any kind of
+interpretation.  Any time the DFG changes, it gets recompiled and
+re-loaded.
+
+Essentially, abstract evaluation.
+
+
+Entry: Resample
+Date: Sat Nov 10 15:17:55 EST 2012
+
+I'm giving up for doing this in straight mmx: there doesn't seem to be
+a good way: most of the code is shuffling that can just as well be
+replaced by integer operations and possibly straight s16 memory
+accesses.
+
+I'm going to commit now and remove all the shuffling code.  It was an
+interesting trip though :)
+
+Another thing: if all pixel increments are made such that they are
+always positive, and always smaller than the with/height of the image,
+a simple compare -> conditional subtract is actually enough to compute
+the integer/fractional addresses directly: no multiplication is
+necessary.  However, it is nearly free.
+
+
+
+Entry: Bug
+Date: Sat Nov 10 20:37:49 EST 2012
+
+So I thought I had a bug as my scanned synthetis patch was running so
+slow.  Turns out this was because it was running at 640x480 instead of
+320x240!
+
+
+
+Entry: Camera 0c45:62c0 Microdia Sonix USB 2.0 Camera
+Date: Sun Nov 11 01:29:31 EST 2012
+
+Very nice surprise, the cam works at high framerate.
+However, after upgrading:
+
+linux-image-3.0.0-1-686-pa
+linux-image-3.2.0-4-rt-686-pae
+
+the cam only does 1, 5 fps and won't accept anything else.
+
+[    0.000000] Linux version 3.0.0-1-686-pae (Debian 3.0.0-3) (ben@decadent.org.uk) (gcc version 4.5.3 (Debian 4.5.3-8) ) #1 SMP Sat Aug 27 16:41:03 UTC 2011
+...
+[    7.622315] uvcvideo: Found UVC 1.00 device USB 2.0 Camera (0c45:62c0)
+[    7.639655] input: USB 2.0 Camera as /devices/pci0000:00/0000:00:1d.7/usb1/1-5/1-5:1.0/input/input7
+[    7.640637] usbcore: registered new interface driver uvcvideo
+[    7.640646] USB Video Class driver (v1.1.0)
+
+Framerates go up to 30.
+
+[    0.000000] Linux version 3.2.0-4-rt-686-pae (debian-kernel@lists.debian.org) (gcc version 4.6.3 (Debian 4.6.3-12) ) #1 SMP PREEMPT RT Debian 3.2.32-1
+...
+[   95.380809] uvcvideo: Found UVC 1.00 device USB 2.0 Camera (0c45:62c0)
+[   95.407087] input: USB 2.0 Camera as /devices/pci0000:00/0000:00:1d.2/usb4/4-1/4-1:1.0/input/input12
+[   95.409414] usbcore: registered new interface driver uvcvideo
+[   95.409426] USB Video Class driver (1.1.1)
+
+framerates 1, 5
+
+
+Entry: 2.6.32
+Date: Mon Nov 12 11:04:14 EST 2012
+
+This kernel is still running on an old pentium MMX computer, which is
+probably a good for testing if it still works.
+
+
+Entry: Building pd-extended
+Date: Tue Nov 13 16:23:38 EST 2012
+
+I need to be careful not to break the pure-data externals repository build.
+
+Seems that core has moved to git, but all externals are still in SVN.
+I'm putting it under ~/pd/svn/pure-data from:
+svn checkout https://pure-data.svn.sourceforge.net/svnroot/pure-data/trunk pure-data
+
+To build a part:
+
+cd pure-data/externals
+make pdp
+make creb
+
+
+
+
+Entry: Converting to darcs-2
+Date: Sat Dec  8 10:44:13 EST 2012
+
+
+
+Entry: Running in gdb
+Date: Sat Dec  8 18:47:16 EST 2012
+
+Next probably good to run it in gdb.
+It's simple enough with "gdb --args"
+
+
+Entry: X stuff
+Date: Sat Dec  8 19:41:56 EST 2012
+
+Might just be my X since it's a bit unstable..
+
+
+X Error of failed request:  BadValue (integer parameter out of range for operation)
+  Major opcode of failed request:  132 (XVideo)
+  Minor opcode of failed request:  19 ()
+  Value in failed request:  0x3f
+  Serial number of failed request:  460
+  Current serial number in output stream:  461
+
+
+How to debug this?
+
+-> I don't know where it comes from.  Maybe the window manager? 
+   I added a limit to the window size of 4000x4000.
+
+Entry: List parser
+Date: Sun Dec  9 11:57:09 EST 2012
+
+Problem with interfacing OO C code with pd is just the control
+messages.  What I want is some kind of straightforward way to map a pd
+list, i.e. |coef 123< to a function call x_coef(x, 123).
+
+This needs a dispatcher, or a "de-dynamicifier".
+
+The trouble here is type stuff: somehow the static C type need a
+run-time representation.  Instead of parsing header files, it seems
+best to tackle this at the source, encoding the syntax in some CPP
+constructs that are easily evaluated to different parts (declaration,
+implementation, parser, ...)
+
+Using explicit markers:
+
+#define API \
+FUN_BEGIN(float, set_coef1) ARG(float, c) FUN_END \
+FUN_BEGIN(float, set_coef1) ARG(float, c) FUN_END \
+
+
+Using macro varargs
+
+FUN(ID(float, set_amp,   "Set amplitude"),
+    ID(float, amp,       "amplitude"))
+
+FUN(ID(float, set_coord, "Set 2D coordinates"),
+    ID(float, x,         "X coordinate"),
+    ID(float, y,         "Y coordinate"))
+
+Declaration is then:
+
+#define FUN(n, ...) n (__VA_LIST__);
+#define ID(t,n,doc) t n
+
+Let's try this out for the xv wrapper.
+
+
+
+Entry: Release?
+Date: Tue May 14 13:24:25 EDT 2013
+
+I got interrupted in December..
+What's next?
+
+- new build system?
+- make V4L2 build properly
+- more tests?
+
+
+
+Entry: Prerelease
+Date: Tue May 14 14:32:13 EDT 2013
+
+Hello,
+
+There's a PDP release in the pipeline:
+
+0.14.0: 
+        Port ia32 MMX assembly code to GCC extensions (MMX support on amd64)
+        Add V4L2 support to pdp_v4l (merge with pdp_v4l2)
+        Distill zl (Zwizwa Lib) from PDP and libprim/PF code.
+
+This is quite a big change internally and is not 100% stable yet.  It
+should be functionally equivalent with previous version.  I'm going to
+put out what I have now for people that like to try it out.  If you
+run into a bug, post here or send it to pdp@zwizwa.be
+
+http://zwizwa.be/pd/pdp/test/pdp-darcs-20130514_145023.tar.gz
+
+Some known issues are GLX crashes when texture size changes and V4L1
+support being broken.
+
+( See pdp_v4l_hack for a new camera-specific setup hack that was
+necessary to get high FPS on a Microsoft cam.  It might be useful for
+other cams too. )
+
+Cheers
+Tom
+
+
+
+Entry: Todo from pd-list
+Date: Wed May 15 20:19:40 EDT 2013
+
+- find m_pd.h in different path WONTFIX?
+- fix default target DONE
+- weird images sizes sometimes crash (not in debug build?)
+
+
+Entry: 3dp
+Date: Fri Oct 11 10:08:33 EDT 2013
+
+TODO:
+- Move the 3D context object to zl.
+- Cleanup zl such that pdp contains standalone lib to avoid merge issues
+
+The core object that's passed around in 3dp is a 3Dcontext.  It seems
+simplest to move the implementation of this into zl.
+
+However... it might be best to take this code from PF, and just make
+3dp work with recent api changes.
+
+It's not a small change to do this merge properly...
+
+
+
+Entry: procqueue
+Date: Sat Oct 12 19:21:57 EDT 2013
+
+I thought I took that out...  Apparently not.
+Means 3dp needs to support it?
+
+
+Entry: 3DP bug when opening 2 separate windows
+Date: Tue Oct 15 19:48:23 EDT 2013
+
+tom@zoo:~/pdp/opengl/doc/examples$ pd.local example05.pd 
+
+X Error of failed request:  BadMatch (invalid parameter attributes)
+  Major opcode of failed request:  154 (GLX)
+  Minor opcode of failed request:  11 (X_GLXSwapBuffers)
+  Serial number of failed request:  66
+  Current serial number in output stream:  67
+
+
+Entry: SCAF also broken (32bit asm)
+Date: Tue Oct 15 20:07:52 EDT 2013
+
+example 6
+
+
+Entry: TODO 3dp
+Date: Tue Oct 15 20:14:54 EDT 2013
+
+example 5,6,8,11,12,13,15
+
+
+Entry: 3dp bug when changing window size in ex 8 with lots of squares
+Date: Tue Oct 15 20:17:14 EDT 2013
+
+tom@zoo:~/pdp/opengl/doc/examples$ pd.local example08.pd 
+MULTI_AUDIODEV 3
+PDP_AUDIODEV 1
+29157
+using JACK
+priority 6 scheduling enabled.
+priority 8 scheduling enabled.
+Fontconfig warning: "/etc/fonts/conf.d/50-user.conf", line 9: reading configurations from ~/.fonts.conf is deprecated.
+Fontconfig warning: "/etc/fonts/conf.d/53-monospace-lcd-filter.conf", line 10: Having multiple values in <test> isn't supported and may not work as expected
+Fontconfig warning: "/etc/fonts/conf.d/65-droid-sans-fonts.conf", line 103: Having multiple values in <test> isn't supported and may not work as expected
+Fontconfig warning: "/etc/fonts/conf.d/65-droid-sans-fonts.conf", line 138: Having multiple values in <test> isn't supported and may not work as expected
+Fontconfig warning: "/etc/fonts/conf.d/90-fonts-unfonts-core.conf", line 11: Having multiple values in <test> isn't supported and may not work as expected
+Fontconfig warning: "/etc/fonts/conf.d/90-fonts-unfonts-extra.conf", line 16: Having multiple values in <test> isn't supported and may not work as expected
+ev: 22
+ev: 22
+ev: 19
+X Error of failed request:  BadDrawable (invalid Pixmap or Window parameter)
+  Major opcode of failed request:  137 (DRI2)
+  Minor opcode of failed request:  8 (DRI2SwapBuffers		)
+  Resource id in failed request:  0x1800003
+  Serial number of failed request:  1765
+  Current serial number in output stream:  1765
+
+
+
+Entry: 3dp window events don't seem to work after libprim/zl update
+Date: Wed Oct 16 09:47:09 EDT 2013
+
+check mouserotate
+
+
+
+Entry: torus is gone!
+Date: Sun Oct 27 10:51:48 EDT 2013
+
+static void draw_wtorus(t_drawcommand *x)
+{
+    float ri = x->x_p0;
+    float ro = x->x_p1;
+    int n = (int)x->x_p2;
+    int m = (int)x->x_p3;
+
+    if (n < 1) n = 20;
+    if (m < 1) m = n;
+
+    // glutWireTorus(ri, ro, n, m);
+
+}
+
+In PF?
+
+Ok, this is because the GLUT dependency was removed.  Added it back to
+pdp_opengl
+
+
+Entry: 3Dcontext events fixed
+Date: Sun Oct 27 12:33:21 EDT 2013
+
+using the new "for" approach.
+
+
+
+Entry: TODO 3dp
+Date: Sun Oct 27 12:34:23 EDT 2013
+
+example 5,6,8,11,12,13,15
+
+
+
+Entry: example08.pd: gl method called outside of context?
+Date: Sun Oct 27 12:48:36 EDT 2013
+
+Not sure how to fix this, since "current context" doesn't really mean
+anything in the packet conversion code..
+
+bt
+#0  0x02f5b290 in pdp_packet_texture_isvalid () from /home/tom/darcs/pdp/opengl/pdp_opengl.pd_linux
+#1  0x02f5b361 in _pdp_packet_texture_old_or_dummy () from /home/tom/darcs/pdp/opengl/pdp_opengl.pd_linux
+#2  0x02f5b524 in _pdp_packet_texture_convert_bitmap_to_texture () from /home/tom/darcs/pdp/opengl/pdp_opengl.pd_linux
+#3  0x009ac85b in _pdp_type_run_conversion_program () from /home/tom/darcs/pdp/pdp.pd_linux
+#4  0x009acdac in _pdp_packet_convert () from /home/tom/darcs/pdp/pdp.pd_linux
+#5  0x009acec6 in pdp_packet_convert_rw () from /home/tom/darcs/pdp/pdp.pd_linux
+#6  0x02f5af7e in _pdp_packet_texture_convert_image_to_texture () from /home/tom/darcs/pdp/opengl/pdp_opengl.pd_linux
+#7  0x009ac85b in _pdp_type_run_conversion_program () from /home/tom/darcs/pdp/pdp.pd_linux
+#8  0x009acdac in _pdp_packet_convert () from /home/tom/darcs/pdp/pdp.pd_linux
+#9  0x009acf36 in pdp_packet_convert_ro () from /home/tom/darcs/pdp/pdp.pd_linux
+#10 0x00987d6d in pdp_convert_input_0 () from /home/tom/darcs/pdp/pdp.pd_linux
+#11 0x080af90b in pd_typedmess ()
+#12 0x080b16cf in outlet_anything ()
+#13 0x009b7316 in outlet_pdp_register () from /home/tom/darcs/pdp/pdp.pd_linux
+#14 0x009b752e in pdp_packet_pass_if_valid () from /home/tom/darcs/pdp/pdp.pd_linux
+#15 0x009b7ac3 in pdp_pass_if_valid () from /home/tom/darcs/pdp/pdp.pd_linux
+#16 0x009b6b5c in pdp_base_postprocess () from /home/tom/darcs/pdp/pdp.pd_linux
+#17 0x009b8d6c in pdp_procqueue_add () from /home/tom/darcs/pdp/pdp.pd_linux
+#18 0x009b6c5d in pdp_base_bang () from /home/tom/darcs/pdp/pdp.pd_linux
+#19 0x009b6d34 in pdp_base_input_hot () from /home/tom/darcs/pdp/pdp.pd_linux
+#20 0x080af90b in pd_typedmess ()
+#21 0x080b16cf in outlet_anything ()
+#22 0x009b73d7 in outlet_pdp_process () from /home/tom/darcs/pdp/pdp.pd_linux
+#23 0x009b7546 in pdp_packet_pass_if_valid () from /home/tom/darcs/pdp/pdp.pd_linux
+#24 0x00991f3b in pdp_plasma_postproc () from /home/tom/darcs/pdp/pdp.pd_linux
+#25 0x009b6b46 in pdp_base_postprocess () from /home/tom/darcs/pdp/pdp.pd_linux
+#26 0x009b8d6c in pdp_procqueue_add () from /home/tom/darcs/pdp/pdp.pd_linux
+#27 0x009b6c5d in pdp_base_bang () from /home/tom/darcs/pdp/pdp.pd_linux
+#28 0x00991e3b in pdp_plasma_bang () from /home/tom/darcs/pdp/pdp.pd_linux
+
+
+Maybe conversion of bitmap to texture should just be removed.
+I.e. only do this in 3dp object?
+
+
+
+Entry: fixing scaf
+Date: Tue Oct 29 09:44:07 EDT 2013
+
+Probably best to make a different architecture.  It doesn't seem too
+hard to write this in pure C in an unrolled/tiled loop.
+
+Hmm... no.  That's not a good tap point.
+
+It might be simplest to keep the code in 386 bit mode and do the ABI
+adaptation in the feeder routine.  How to switch to 386 bit mode?
+Maybe only the OS can do that?  Doesn't look like this will work.
+
+What is the code that goes into the assembler?
+
+In scafmacro.s the memory references are through %edi and %esi.
+Changing these to the 64 bit equivalents should be enough.  Then fix
+the feeder to use a 64bit ABI.
+
+esi -> rsi
+edi -> rdi
+
+To make this work, make sure all .s files pass through the C
+preprocessor, then use:
+
+// 32bit
+#define SI %esi
+#define SI %esi
+
+// 64bit
+#define SI %rsi
+#define SI %rsi
+
+
+
+
+http://stackoverflow.com/questions/2500362/running-32-bit-assembly-code-on-a-64-bit-linux-64-bit-processor-explain-the
+
+
+Entry: Fix scaf
+Date: Sun Nov  3 12:52:07 EST 2013
+
+- convert pdp_ca.c to fixed size ints from stdint.h
+- use minimal %esi / %edi fix for core routines
+- create inline asm feeder
+
+
+EDIT: Tried on Acer One 32bit, but pdp_opengl gives problems after
+recompile.  Should do a fresh configure & compile and find out what's
+wrong..
+
+No protocol specified
+pdp: x11: can't open display :0
+
+It also happened a launching xterm, but now xterm works again.  Not
+sure what the difference was.
+
+Let's restart X server.  Yep, that fixed it.
+
+Guess is that there is another bug in the 3Dcontext -> Xlib calls that
+exposes a bug in the X server.
+
+
+
+
+Entry: Next: scaf
+Date: Thu Dec  5 09:40:02 EST 2013
+
+- build feeder in C
+- check if it works on x86
+- verify on amd64
+
+
+
+
+Entry: TODO 3dp
+Date: Sun Oct 27 12:34:23 EDT 2013
+
+Last note was:
+example 5,6,8,11,12,13,15
+
+
+crash: 5,
+
+behavior: 6,
+
+
+Entry: Release notes
+Date: Fri Dec 13 13:00:31 EST 2013
+
+updates to pdp_scaf and pdp_opengl (3dp)
+
+SCAF (Simple Cellular Automata Forth) is ported to x86_64 ABI.  It
+still uses the old MMX integer code which makes little sense on
+x86_64, but at least it works.
+
+3dp +- works.  Some known issues in corner cases (pdp/opengl/doc/examples)
+- example05.pd : multiple window render contexts
+- example06.pd : bug in scaf CA grid -> texture conversion ?
+
+
+
+Entry: glxcontext
+Date: Sat Dec 21 17:55:00 EST 2013
+
+
+void zl_3Dcontext_glx_setup(void) {
+    ...
+    glx_env.glx = zl_glx_new();
+    ...
+}
+
+There's some confusion about context and drawables...  Find out
+exactly what the relation is between these.  The bug is probably just
+a misunderstanding of what is what.
+
+
+glXMakeCurrent takes:
+- Display
+- GLXDrawable (window)
+- GLXContext
+
+When a 3dp window is closed and reopened, the drawable should change,
+but the display and context should remain the same.
+
+The problem seems to be that the drawable is gone.  Maybe this is just
+a flush problem?
+
+Or, does the closing of the window also delete the context?
+no
+
+Something non-obvious is going on here.  It doesn't look like the
+swapbuffer call is the source of the problem, just a symptom.
+
+
+X Error of failed request:  BadMatch (invalid parameter attributes)
+  Major opcode of failed request:  154 (GLX)
+  Minor opcode of failed request:  11 (X_GLXSwapBuffers)
+  Serial number of failed request:  320
+  Current serial number in output stream:  321
+
+
+I'm guessing this is just fallout from a dangling reference issue.
+
+
+Entry: Cleanup
+Date: Sun Dec 22 14:43:23 EST 2013
+
+So I really want to clean up PDP to make it maintainable.  What that
+means in practice is to _remove_ stuff.
+
+One of the complications is the procqueue.  I wonder if it is actually
+used for anything essential.  It can probably be replaced with
+abstract interpretation.
+
+The problem here is time.  This is not someting for an incremental
+job.  Or at least, the increments will be fairly large.
+
+
+
+Entry: Debug GLX error
+Date: Mon Dec 30 17:35:38 EST 2013
+
+..
+glXSwapBuffers(0x7fb9f0000950,0x1600003)
+glXSwapBuffers(0x7fb9f0000950,0x1600003)
+zl_3Dcontext_free(0x1d2baf0,(nil))
+glXSwapBuffers(0x7fb9f0000950,0x160000a)
+glXSwapBuffers(0x7fb9f0000950,0x160000a)
+glXSwapBuffers(0x7fb9f0000950,0x160000a)
+X Error of failed request:  BadMatch (invalid parameter attributes)
+  Major opcode of failed request:  154 (GLX)
+  Minor opcode of failed request:  11 (X_GLXSwapBuffers)
+  Serial number of failed request:  592
+  Current serial number in output stream:  594
+
+
+I'd like to really know what is going on here, i.e. go into the
+graphics driver and see why it raises a BadMatch, which is not what
+it's supposed to do.  At least I find no valid reason.
+
+Maybe mesa debug would help here?
+
+
+Entry: Better errors on Acer Revo / Ubuntu
+Date: Mon Jan  6 11:36:08 EST 2014
+
+
+glXSwapBuffers(0xb35004e0,0x1800003)
+glXSwapBuffers(0xb35004e0,0x1800003)
+glXSwapBuffers(0xb35004e0,0x1800003)
+glXSwapBuffers(0xb35004e0,0x1800003)
+zl_3Dcontext_free(0x87364e8,(nil))
+glXSwapBuffers(0xb35004e0,0x180000a)
+glXSwapBuffers(0xb35004e0,0x180000a)
+X Error of failed request:  GLXBadDrawable
+  Major opcode of failed request:  153 (GLX)
+  Minor opcode of failed request:  11 (X_GLXSwapBuffers)
+  Serial number of failed request:  81
+  Current serial number in output stream:  82
+
+
+
+Entry: Main 3D rendering objects
+Date: Mon Jan  6 11:36:55 EST 2014
+
+The problem is one of organization.
+
+- X server connection
+
+- GLX contex
+
+- X window (drawable)
+
+
+
+How to fix?  Probably best to trace all gl calls.  Is there a simple
+way to do this without manual edit?
+
+
+
+Entry: Damn
+Date: Mon Jan  6 12:13:00 EST 2014
+
+Is this just me getting old and confused, or did the buggy nature of
+emacs / gdb just get worse over time?
+
+I'm having a lot of trouble setting up a proper test case for a 3dp
+bug.  Maybe it's being lazy that's the problem.. i.e. it actually
+requires some thinking instead of one-eye-closed prodding.
+

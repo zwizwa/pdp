@@ -1,0 +1,27 @@
+ZL - Zwizwa Lib
+
+Date: Fri Oct 11 19:07:16 EDT 2013
+
+This is a grab bag of "old tech" plain C objects without any bindings
+or fancy dependencies.  It is a shared pool of objects used in pdp[1]
+and libprim[2].  
+
+Code is duplicated in those projects, and available as a stand-alone
+archive here[3].
+
+License is defaulted to GPL, but drop me a line if you need something
+else.  Note that some objects are stuck at GPL due to multiple
+contributors.
+
+Unmarked code is (c) 2003-2013 Tom Schouten <tom@zwizwa.be>
+Other authors are mentioned in the specific files.
+
+Some of these objects are from libprim and have stubbed-out code for
+the LEAF base object library.
+
+[1] http://zwizwa.be/pd/pdp
+[2] http://zwizwa.be/darcs/libprim/
+[3] http://zwizwa.be/git/zl
+
+
+

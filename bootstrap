@@ -1,0 +1,5 @@
+chmod +x buildall bin/*
+autoconf
+(cd scaf ; chmod +x compiler/scafc ; chmod +x compiler/scafc.pl ; autoconf)
+(cd opengl ; chmod +x configure)
+

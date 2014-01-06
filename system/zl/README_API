@@ -1,0 +1,60 @@
+
+Abstract API definition.  See also the .h corrsponding to the .ap
+files for expansion into C prototypes.
+
+General idea
+
+The point of ZL objects is to be wrapped easily in different (dynamic)
+programming languages.  It makes sense to make that process as easy as
+possible, avoiding a C parsing step by expressing object method
+descirptions in a more abstract format.
+
+The forms in the *.ap files can easily be manipulated using the C
+preprocessor to generate declarations and wrappers.
+
+The *.api files avoid C constructs such as "*" and "struct", and use
+only identifiers with alphanumeric characters and underscores "_".
+
+Note that this means object pointers need to be wrapped in typedefs,
+an approach which is often frowned upon.  To avoid confusion with
+pointer/integral types, the _p suffix is used in Zl objects.
+
+
+Comma or not?
+
+The big decision is between these 2 forms:
+
+  FUN(t, f, ARG(t1,a1), ARG(t2,a2))
+
+  FUN(t, f) ARG(t1,a1) ARG(t2,a2) END
+
+The former needs a macro with __VA_ARGS__, the latter has no
+separators between the arguments, and needs them built into the
+definition of ARG and FUN.
+
+
+A tale of C preprocessor hacking..
+
+Comma-separated lists can only be mapped to comma-separated list with
+the same form.  This allows 2 C constructs to be used:
+
+- Array / structure initializers
+- Function calls
+
+These 2 indirection mechanisms are fairly powerful, but they do are
+limited due to the presence of the comma, i.e. 
+
+Note that there is a slight annoyance here: function declarations and
+calls to not take trailing commas.  This means that ARG needs a
+leading comma, meaning that FUN needs to include the first argument.
+In practice this doesn't seem to be a problem, since all functions can
+be grouped by the type of their first operand (object pointer).
+
+
+Implicit object or not?
+
+To solve the trailing comma problem, it's probably best to also drop
+the object argument in the .api definition.  Additionally it can get
+in the way for generic mapping, where the object might be implicit and
+not part of the representation of the argument lists.
+

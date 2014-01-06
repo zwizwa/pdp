@@ -1,0 +1,48 @@
+#N canvas 0 33 718 865 10;
+#X obj 83 95 pdp_v4l;
+#X obj 83 35 inlet;
+#X obj 91 182 outlet;
+#X obj 154 179 outlet;
+#X obj 244 122 route card;
+#X obj 244 174 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X msg 162 55 info;
+#X obj 44 54 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144 -1
+-1;
+#X msg 244 204 control EXPOSURE_AUTO 1 \, control EXPOSURE_ABSOLUTE
+350;
+#X msg 28 239 open /dev/video0;
+#X msg 26 264 open /dev/video1;
+#X obj 529 173 print unknown_camera;
+#X obj 244 147 route USB_2_0_Camera Microsoft___LifeCam_HD_5000;
+#X obj 386 173 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X text 254 17 The idea here is to automatically set some properties
+based on camera ID \, but it seems easier to just do this manually.
+My Microsoft HD-5000 needs: control EXPOSURE_AUTO 1 \, control EXPOSURE_ABSOLUTE
+156 It seems that most cameras only work on their highest frequency
+when exposure is off. If exposure control is not available \, just
+adding more ambient light can be enough to raise the effective framerate.
+;
+#X msg 243 236 control EXPOSURE_AUTO 1 \, control EXPOSURE_ABSOLUTE
+156 \, fps 30;
+#X msg 202 335 dim 320 340;
+#X msg 197 362 dim 640 480;
+#X connect 0 0 2 0;
+#X connect 0 1 3 0;
+#X connect 0 1 4 0;
+#X connect 1 0 0 0;
+#X connect 4 0 12 0;
+#X connect 5 0 8 0;
+#X connect 6 0 0 0;
+#X connect 7 0 0 0;
+#X connect 8 0 0 0;
+#X connect 9 0 0 0;
+#X connect 10 0 0 0;
+#X connect 12 0 5 0;
+#X connect 12 1 13 0;
+#X connect 12 2 11 0;
+#X connect 13 0 15 0;
+#X connect 15 0 0 0;
+#X connect 16 0 0 0;
+#X connect 17 0 0 0;

@@ -1,0 +1,103 @@
+/* cons / des */
+
+FUN(void, init)    END
+FUN(void, cleanup) END
+FUN(void, free)    END
+
+/* move the pointer */
+FUN(void, warppointer)
+    ARG(int, x)
+    ARG(int, y)
+END
+
+FUN(void, warppointer_rel)
+    ARG(float,x)
+    ARG(float,y)
+END
+
+FUN(void,fullscreen) END
+
+FUN(void,resize)
+    ARG(int,width)
+    ARG(int,height)
+END
+
+FUN(void, moveresize)
+    ARG(int, xoffset)
+    ARG(int, yoffset)
+    ARG(int, width)
+    ARG(int, height)
+END
+
+FUN(void, move)
+    ARG(int, xoffset)
+    ARG(int, yoffset)
+END
+
+/* fill a tile of the screen */
+FUN(void, tile)
+    ARG(int, x_nb_tiles)
+    ARG(int, y_nb_tiles)
+    ARG(int, tile_x)
+    ARG(int, tile_y)
+END
+
+/* enable/disable cursor */
+FUN(void, cursor)
+    ARG(int, flag)
+END
+
+/* create zl_xwindow. return code != NULL on succes */
+FUN(int, config)
+    ARG(zl_xdisplay_p, d)
+END
+
+/* close window */
+FUN(void, close) END
+
+/* set title */
+FUN(void, title)
+    ARG(char_p, title)
+END
+
+/* clear event queue */
+FUN(void, drop_events) END
+
+/* Handle events.  X11 events are collected through the display
+   connect, which is shared across multiple windows.  To collect
+   events for a single window, we perform two operations: flush the
+   display connection's event buffer and sort it into lists for each
+   window, and then allow this list to be queried by the user.  To
+   abstract the storage of this list, a callback mechanism is used. */
+
+FUN(void, queue_event)
+    ARG(XEvent_p, e)
+END
+
+
+FUN(void, for_events)
+    ARG(zl_zwindow_event_fn, handle)
+    ARG(void_p, context)
+END
+
+/* Like zl_xwindow_for_events, but using a state machine to parse the
+   events into something more useful.  This is inherited from PDP, but
+   uses just const strings and numbers. */
+FUN(void, for_parsed_events)
+    ARG(zl_receiver, handle)
+    ARG(void_p, context)
+END
+
+
+FUN(int, winwidth)
+END
+FUN(int, winheight)
+END
+FUN(int, winxoffset)
+END
+FUN(int, winyoffset)
+END
+
+/* delegates to zl_xwdiwsplay_route_events() */
+FUN(void, route_events)
+END

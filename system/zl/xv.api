@@ -1,0 +1,36 @@
+/* Abstract API definition.  See also xv.h
+
+   Rationale: Since zl is to be wrapped easily in different languages,
+   it makes sense to make that process as easy as possible, avoiding a
+   C parsing step.  The forms below can easily be manipulated using
+   the C preprocessor to generate declarations and wrappers. */
+
+/* Cons / Des */
+FUN(void, init)     
+    ARG(int, fourcc)
+END
+FUN(void, free)     END
+FUN(void, cleanup)  END
+
+
+/* open an xv port (and create XvImage) */
+FUN(int, open_on_display)
+    ARG(zl_xdisplay_p,d)
+    ARG(int, adaptor)
+END
+
+/* close xv port (and delete XvImage */
+FUN(void, close) END
+
+/* get XvImage data buffer */
+FUN(void_p, image_data)
+    ARG(zl_xwindow_p, xwin)
+    ARG(uint, width)
+    ARG(uint, height)
+END
+
+/* display the XvImage */
+FUN(void, image_display)
+    ARG(zl_xwindow_p, xwin)
+END
+

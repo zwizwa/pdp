@@ -1,0 +1,12 @@
+/* -*- c -*- */
+
+/* cons / des */
+FUN(void, free) END
+
+/* windows and events */
+FUN(void, register_window)   ARG(zl_xwindow_p, w) END
+FUN(void, unregister_window) ARG(zl_xwindow_p, w) END
+
+FUN(void, route_events)      END
+
+
