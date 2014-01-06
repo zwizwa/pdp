@@ -1064,13 +1064,13 @@ way to do this without manual edit?
 
 
 
-Entry: Damn
+Entry: gdb
 Date: Mon Jan  6 12:13:00 EST 2014
 
 Is this just me getting old and confused, or did the buggy nature of
 emacs / gdb just get worse over time?
 
-I'm having a lot of trouble setting up a proper test case for a 3dp
-bug.  Maybe it's being lazy that's the problem.. i.e. it actually
-requires some thinking instead of one-eye-closed prodding.
+I'm gessing the problem is that the process stdout/stderr is not
+tagged with target-stream-output '@'.
+
 
