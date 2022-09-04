@@ -170,6 +170,10 @@ void zl_v4l_init(struct zl_v4l *x, bool start_thread);
 const char *zl_v4l_card(struct zl_v4l *x);
 const char *zl_v4l_control_name(int id);
 
+#define ZL_V4L_CTRL_LIST_DEPRECATED             \
+    ZL_V4L_CTRL(HCENTER) \
+    ZL_V4L_CTRL(VCENTER) \
+
 /* Useful for abstracting over symbolic names. */
 #define ZL_V4L_CTRL_LIST                \
     ZL_V4L_CTRL(BRIGHTNESS) \
@@ -193,8 +197,6 @@ const char *zl_v4l_control_name(int id);
     ZL_V4L_CTRL(GAIN) \
     ZL_V4L_CTRL(HFLIP) \
     ZL_V4L_CTRL(VFLIP) \
-    ZL_V4L_CTRL(HCENTER) \
-    ZL_V4L_CTRL(VCENTER) \
     ZL_V4L_CTRL(POWER_LINE_FREQUENCY) \
     ZL_V4L_CTRL(HUE_AUTO) \
     ZL_V4L_CTRL(WHITE_BALANCE_TEMPERATURE) \
